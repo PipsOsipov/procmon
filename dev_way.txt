@@ -1,0 +1,3 @@
+/proc — список PID
+/proc/[pid]/comm — имя процесса
+/proc/[pid]/status — память
