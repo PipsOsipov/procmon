@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <dirent.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MAXPATH 256
+
+int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
+int main(void){
+	int r, t, s, z, total;
+	proc_state_scan(&r, &t, &s, &z, &total);
+	printf("Количество процессов:"
+	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d", 
+	total, r, s, t, z);
+	
+
+	return 0;
+}
+
+int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
+	
+	char proc_path[MAXPATH];
+	char dirpath[MAXPATH] = "/proc/";
+	struct dirent *entry;
+	
+	*r = 0; 
+	*t = 0;
+	*s = 0;
+	*z = 0;
+	*total = 0; 
+	
+	DIR *dir;
+	dir = opendir(dirpath);
+	if (dir == NULL) {
+		perror("Ошибка открытия директории");
+		return 1;
+	}
+	
+	while ((entry = readdir(dir)) != NULL){
+		if (!isdigit(entry->d_name[0]))
+			continue;
+		snprintf(proc_path, sizeof(proc_path), "/proc/%s/status", entry->d_name);
+		printf("\nproc_path: %s", proc_path);
+	}
+
+
+
+
+}
