@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define MAXPATH 256
+#define MAXLEN 128
 
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
 int main(void){
@@ -19,6 +20,7 @@ int main(void){
 
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 	
+	char line[MAXLEN];
 	char proc_path[MAXPATH];
 	char dirpath[MAXPATH] = "/proc/";
 	struct dirent *entry;
@@ -41,7 +43,26 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 			continue;
 		snprintf(proc_path, sizeof(proc_path), "/proc/%s/status", entry->d_name);
 		printf("\nproc_path: %s", proc_path);
+		
+		FILE *fp;
+		fp = fopen(proc_path, "r");
+		if(!fp)
+			continue;
+			
+		(*total)++;
+		
+		while (fgets(line, sizeof(line), fp)){
+			if(strncmp(line, "State:", 6) == 0){
+				
+				
+			}
+		
+		}
+		
+		
+	
 	}
+	
 
 
 
