@@ -10,7 +10,7 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
 int main(void){
 	int r, t, s, z, total;
 	proc_state_scan(&r, &t, &s, &z, &total);
-	printf("Количество процессов:"
+	printf("\nКоличество процессов:"
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d", 
 	total, r, s, t, z);
 	
@@ -56,19 +56,27 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 				char state_sym;
 				
 				if(sscanf(line, "State: %c", &state_sym) == 1){
-					switch(state_sym){}
-				}
-				
+					switch(state_sym){
+					case 'R': (*r)++;
+						break;
+					case 'I':
+					case 'S':
+					case 'D': (*s)++;
+						break;
+					case 'T':
+					case 't': (*t)++;
+						break;
+					case 'Z': (*z)++;
+						break;
+					
+					}
+				} 
+				break;	
 			}
-		
 		}
+		fclose(fp);
 		
-		
-	
 	}
-	
-
-
-
-
+	closedir(dir);
+	return 0;
 }
