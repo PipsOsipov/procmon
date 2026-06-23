@@ -56,7 +56,7 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 				char state_sym;
 				
 				if(sscanf(line, "State: %c", &state_sym) == 1){
-					switch(state_sym)
+					switch(state_sym){}
 				}
 				
 			}
