@@ -7,16 +7,21 @@
 #define MAXLEN 128
 
 struct CPUdata {
-	unsigned long long user, system, nice, idle_time;
+	unsigned long long user, nice, system, idle_time;
 	}; 
 
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
+int read_cpu_data(struct CPUdata *data);
 
 int main(void){
 	int r, t, s, z, total;
+	struct CPUdata first, second;
+	read_cpu_data(&first);
+	printf("1 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
+	first.user, first.nice, first.system, first.idle_time);
 	proc_state_scan(&r, &t, &s, &z, &total);
 	printf("\nКоличество процессов:"
-	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d", 
+	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 	total, r, s, t, z);
 	
 
@@ -85,4 +90,26 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 	}
 	closedir(dir);
 	return 0;
+}
+
+int read_cpu_data(struct CPUdata *data){
+
+	char cpu_data_path[MAXPATH] = "/proc/stat";
+		
+	FILE *fp;
+	fp = fopen(cpu_data_path, "r");
+	if (!fp){
+		perror("Ошибка открытия файла");
+		return -1;
+	}
+	
+	int values = fscanf(fp, "cpu  %llu %llu %llu %llu", &data->user, &data->nice, &data->system, &data->idle_time);
+	
+	fclose(fp);
+	
+	if (values < 4){
+		return -1;
+	}
+	else
+		return 0;
 }
