@@ -6,7 +6,12 @@
 #define MAXPATH 256
 #define MAXLEN 128
 
+struct CPUdata {
+	unsigned long long user, system, nice, idle_time;
+	}; 
+
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
+
 int main(void){
 	int r, t, s, z, total;
 	proc_state_scan(&r, &t, &s, &z, &total);
@@ -68,7 +73,8 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 						break;
 					case 'Z': (*z)++;
 						break;
-					
+					default:
+						break;
 					}
 				} 
 				break;	
