@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAXPATH 256
 #define MAXLEN 128
@@ -14,15 +15,27 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
 int read_cpu_data(struct CPUdata *data);
 
 int main(void){
-	int r, t, s, z, total;
 	struct CPUdata first, second;
+	int r, t, s, z, total;
+	
+	proc_state_scan(&r, &t, &s, &z, &total);
+	printf("Количество процессов:"
+	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
+	total, r, s, t, z);
 	read_cpu_data(&first);
 	printf("1 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
 	first.user, first.nice, first.system, first.idle_time);
+	
+	sleep(1);
+	read_cpu_data(&second);
+	printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
+	second.user, second.nice, second.system, second.idle_time);
+	
 	proc_state_scan(&r, &t, &s, &z, &total);
-	printf("\nКоличество процессов:"
+	printf("Количество процессов:"
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 	total, r, s, t, z);
+	
 	
 
 	return 0;
@@ -52,7 +65,7 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 		if (!isdigit(entry->d_name[0]))
 			continue;
 		snprintf(proc_path, sizeof(proc_path), "/proc/%s/status", entry->d_name);
-		printf("\nproc_path: %s", proc_path);
+		//printf("\nproc_path: %s", proc_path);
 		
 		FILE *fp;
 		fp = fopen(proc_path, "r");
