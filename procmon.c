@@ -36,8 +36,30 @@ int main(void){
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 	total, r, s, t, z);
 	
-	
+	unsigned int d_user   = (unsigned int)(second.user - first.user);
+	unsigned int d_nice   = (unsigned int)(second.nice - first.nice);
+	unsigned int d_system = (unsigned int)(second.system - first.system);
+	unsigned int d_idle   = (unsigned int)(second.idle_time - first.idle_time);
 
+	unsigned int d_total  = d_user + d_nice + d_system + d_idle;
+	
+	if (d_total > 0){
+		double cpu_total = (1.0 - ((double) d_idle/d_total)) * 100;
+		
+		double cpu_user = ((double) d_user/d_total) * 100;
+		
+		double cpu_nice = ((double) d_nice/d_total) * 100;
+		
+		double cpu_system = ((double) d_system/d_total) * 100;
+	
+		printf("%%CPU(s): %5.1f\n", cpu_total);
+		printf("user %5.1f%% | system %5.1f%% | nice %5.1f%% | idle %5.1f%%\n", 
+		cpu_user, cpu_system, cpu_nice, (double)d_idle / d_total * 100.0);
+
+	} else{
+		printf("CPU(s): 0%");
+	}
+	
 	return 0;
 }
 
