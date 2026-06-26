@@ -10,7 +10,12 @@
 struct CPUdata {
 	unsigned long long user, nice, system, idle_time;
 	}; 
+	
+struct RAMdata {
+		unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
+	};
 
+int read_ram_data(struct RAMdata *data);
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
 int read_cpu_data(struct CPUdata *data);
 
@@ -57,7 +62,7 @@ int main(void){
 		cpu_user, cpu_system, cpu_nice, (double)d_idle / d_total * 100.0);
 
 	} else{
-		printf("CPU(s): 0%");
+		printf("CPU(s): 0%%");
 	}
 	
 	return 0;
@@ -147,4 +152,18 @@ int read_cpu_data(struct CPUdata *data){
 	}
 	else
 		return 0;
+}
+int read_ram_data(struct RAMdata *data){
+
+	char mem_path[MAXPATH] = "/proc/meminfo";
+
+	FILE *fp;
+	fp = fopen(mem_path, "r");
+	if (!fp){
+		perror("Ошибка открытия файла ");
+		return -1;
+	}
+	
+	
+
 }
