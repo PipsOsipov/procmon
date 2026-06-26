@@ -12,7 +12,7 @@ struct CPUdata {
 	}; 
 	
 struct RAMdata {
-		unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
+	unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
 	};
 
 int read_ram_data(struct RAMdata *data);
@@ -21,6 +21,7 @@ int read_cpu_data(struct CPUdata *data);
 
 int main(void){
 	struct CPUdata first, second;
+	struct RAMdata ram;
 	int r, t, s, z, total;
 	
 	proc_state_scan(&r, &t, &s, &z, &total);
@@ -40,6 +41,7 @@ int main(void){
 	printf("Количество процессов:"
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 	total, r, s, t, z);
+	
 	
 	unsigned int d_user   = (unsigned int)(second.user - first.user);
 	unsigned int d_nice   = (unsigned int)(second.nice - first.nice);
@@ -64,6 +66,12 @@ int main(void){
 	} else{
 		printf("CPU(s): 0%%");
 	}
+	
+	read_ram_data(&ram);
+	unsigned long long mem_buff_cache = ram.mem_cache + ram.mem_buff + ram.mem_krecl;
+	unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
+	printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache", 
+	(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 	
 	return 0;
 }
@@ -156,6 +164,7 @@ int read_cpu_data(struct CPUdata *data){
 int read_ram_data(struct RAMdata *data){
 
 	char mem_path[MAXPATH] = "/proc/meminfo";
+	char line[MAXLEN];
 
 	FILE *fp;
 	fp = fopen(mem_path, "r");
@@ -163,7 +172,20 @@ int read_ram_data(struct RAMdata *data){
 		perror("Ошибка открытия файла ");
 		return -1;
 	}
+	while (fgets(line, sizeof(line), fp)){
+		if (strncmp(line, "MemTotal:", 9) == 0){
+			sscanf(line, "MemTotal: %llu", &data->mem_total);
+		} else if (strncmp(line, "MemFree:", 8) == 0){
+			sscanf(line, "MemFree: %llu", &data->mem_free);
+		} else if (strncmp(line, "Buffers:", 8) == 0){
+			sscanf(line, "Buffers: %llu", &data->mem_buff);
+		} else if (strncmp(line, "Cached:", 7) == 0){
+			sscanf(line, "Cached: %llu", &data->mem_cache);
+		} else if (strncmp(line, "KReclaimable:", 13) == 0){
+			sscanf(line, "KReclaimable: %llu", &data->mem_krecl);
+		} 
 	
-	
-
+	}
+	fclose(fp);
+	return 0;
 }
