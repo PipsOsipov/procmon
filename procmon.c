@@ -24,55 +24,63 @@ int main(void){
 	struct RAMdata ram;
 	int r, t, s, z, total;
 	
-	proc_state_scan(&r, &t, &s, &z, &total);
+	
+	/*proc_state_scan(&r, &t, &s, &z, &total);
 	printf("Количество процессов:"
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
-	total, r, s, t, z);
+	total, r, s, t, z);*/
 	read_cpu_data(&first);
-	printf("1 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
-	first.user, first.nice, first.system, first.idle_time);
+	/*printf("1 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
+	first.user, first.nice, first.system, first.idle_time);*/
 	
-	sleep(1);
-	read_cpu_data(&second);
-	printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
-	second.user, second.nice, second.system, second.idle_time);
-	
-	proc_state_scan(&r, &t, &s, &z, &total);
-	printf("Количество процессов:"
-	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
-	total, r, s, t, z);
-	
-	
-	unsigned int d_user   = (unsigned int)(second.user - first.user);
-	unsigned int d_nice   = (unsigned int)(second.nice - first.nice);
-	unsigned int d_system = (unsigned int)(second.system - first.system);
-	unsigned int d_idle   = (unsigned int)(second.idle_time - first.idle_time);
+	while(1){
+		
+		sleep(1);
+		
+		if(read_cpu_data(&second) != 0){
+			break;
+		}
+		/*printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
+		second.user, second.nice, second.system, second.idle_time);*/
+		proc_state_scan(&r, &t, &s, &z, &total);
+		
+		read_ram_data(&ram);
+		
+		printf("\033[H\033[J");
+		
+		printf("Tasks: Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
+		total, r, s, t, z);
+		
+		unsigned int d_user   = (unsigned int)(second.user - first.user);
+		unsigned int d_nice   = (unsigned int)(second.nice - first.nice);
+		unsigned int d_system = (unsigned int)(second.system - first.system);
+		unsigned int d_idle   = (unsigned int)(second.idle_time - first.idle_time);
 
-	unsigned int d_total  = d_user + d_nice + d_system + d_idle;
-	
-	if (d_total > 0){
-		double cpu_total = (1.0 - ((double) d_idle/d_total)) * 100;
+		unsigned int d_total  = d_user + d_nice + d_system + d_idle;
 		
-		double cpu_user = ((double) d_user/d_total) * 100;
+		if (d_total > 0){
+			double cpu_total = (1.0 - ((double) d_idle/d_total)) * 100;
+			
+			double cpu_user = ((double) d_user/d_total) * 100;
+			
+			double cpu_nice = ((double) d_nice/d_total) * 100;
+			
+			double cpu_system = ((double) d_system/d_total) * 100;
 		
-		double cpu_nice = ((double) d_nice/d_total) * 100;
-		
-		double cpu_system = ((double) d_system/d_total) * 100;
-	
-		printf("%%CPU(s): %5.1f\n", cpu_total);
-		printf("user %5.1f%% | system %5.1f%% | nice %5.1f%% | idle %5.1f%%\n", 
-		cpu_user, cpu_system, cpu_nice, (double)d_idle / d_total * 100.0);
+			printf("%%CPU(s): total %5.1f%% | user %5.1f%% | system %5.1f%% | nice %5.1f%% | idle %5.1f%%\n", 
+			cpu_total, cpu_user, cpu_system, cpu_nice, (double)d_idle / d_total * 100.0);
 
-	} else{
-		printf("CPU(s): 0%%");
+		} else{
+			printf("CPU(s): 0%%");
+		}
+		
+		
+		unsigned long long mem_buff_cache = ram.mem_cache + ram.mem_buff + ram.mem_krecl;
+		unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
+		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n", 
+		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
+		first = second;
 	}
-	
-	read_ram_data(&ram);
-	unsigned long long mem_buff_cache = ram.mem_cache + ram.mem_buff + ram.mem_krecl;
-	unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
-	printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache", 
-	(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
-	
 	return 0;
 }
 
