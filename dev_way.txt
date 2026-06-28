@@ -292,5 +292,5 @@ si — программные которые происходят на уров�
 	MiB Mem: 15736.9 total, 11100.3 free, 2055.5 used, 2581.0 buff/cache 
 
 	Забыл онулировать значения структуры RAMdata
-	
+	memset(data, 0, sizeof(struct RAMdata));
 	
