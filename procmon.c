@@ -172,6 +172,9 @@ int read_ram_data(struct RAMdata *data){
 		perror("Ошибка открытия файла ");
 		return -1;
 	}
+	
+	memset(data, 0, sizeof(struct RAMdata));
+	
 	while (fgets(line, sizeof(line), fp)){
 		if (strncmp(line, "MemTotal:", 9) == 0){
 			sscanf(line, "MemTotal: %llu", &data->mem_total);
