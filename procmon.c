@@ -95,10 +95,10 @@ int main(void){
 		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		first = second;
+		printf("PID	STATE	RES	%%CPU	%%MEM\n");
 		for (int i = 0; i<=MAXPROC; i++){
 			if (proc_info[i].pid == 0)
-				break;
-			printf("PID	STATE	RES	%%CPU	%%MEM\n");
+				break;	
 			printf("%d	%c	%llu	%.2f	%.2f\n", 
 			proc_info[i].pid, proc_info[i].state, proc_info[i].res, proc_info[i].perc_cpu, proc_info[i].perc_mem);
 		}
