@@ -3,9 +3,19 @@
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define MAXPATH 256
 #define MAXLEN 128
+#define MAXPROC 2048
+
+struct ProcessInfo{
+	int pid;
+	char state;
+	unsigned long long res;
+	float perc_cpu;
+	float perc_mem;
+};
 
 struct CPUdata {
 	unsigned long long user, nice, system, idle_time;
@@ -15,6 +25,7 @@ struct RAMdata {
 	unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
 	};
 
+int read_process_info(struct ProcessInfo process[]);
 int read_ram_data(struct RAMdata *data);
 int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
 int read_cpu_data(struct CPUdata *data);
@@ -22,6 +33,7 @@ int read_cpu_data(struct CPUdata *data);
 int main(void){
 	struct CPUdata first, second;
 	struct RAMdata ram;
+	struct ProcessInfo proc_info[MAXPROC];
 	int r, t, s, z, total;
 	
 	
@@ -35,7 +47,8 @@ int main(void){
 	
 	while(1){
 		
-		sleep(1);
+		sleep(3);
+		
 		
 		if(read_cpu_data(&second) != 0){
 			break;
@@ -45,6 +58,8 @@ int main(void){
 		proc_state_scan(&r, &t, &s, &z, &total);
 		
 		read_ram_data(&ram);
+		
+		read_process_info(proc_info);
 		
 		printf("\033[H\033[J");
 		
@@ -80,6 +95,13 @@ int main(void){
 		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		first = second;
+		for (int i = 0; i<=MAXPROC; i++){
+			if (proc_info[i].pid == 0)
+				break;
+			printf("PID	STATE	RES	%%CPU	%%MEM\n");
+			printf("%d	%c	%llu	%.2f	%.2f\n", 
+			proc_info[i].pid, proc_info[i].state, proc_info[i].res, proc_info[i].perc_cpu, proc_info[i].perc_mem);
+		}
 	}
 	return 0;
 }
@@ -199,4 +221,69 @@ int read_ram_data(struct RAMdata *data){
 	}
 	fclose(fp);
 	return 0;
+}
+
+int read_process_info(struct ProcessInfo process[]){
+	int pid = 0;
+	char status_path[MAXLEN];
+	char line[MAXLEN];
+	char statm_path[MAXLEN];
+	unsigned long long res_pages = 0;
+	int count = 0;
+	unsigned long long page_size = sysconf(_SC_PAGESIZE);
+	
+	DIR *dir;
+	struct dirent *entry;
+	
+	dir = opendir("/proc/");
+	if (dir == NULL){
+		perror("Ошибка открытия директории");
+		return -1;
+	}
+	while ((entry = readdir(dir)) != NULL){
+		if (!isdigit(entry -> d_name[0]))
+			continue;
+		
+		if (count >= MAXPROC) 
+			break;
+			
+		pid = atoi(entry->d_name);
+		
+		snprintf(status_path, sizeof(status_path), "/proc/%d/status", pid);
+		FILE *fp;
+		fp = fopen(status_path, "r");
+		if (!fp){
+			perror("Ошибка открытия файла");
+			return -1;
+		}
+		
+		char state_sym = 'X';
+		while (fgets(line, sizeof(line), fp)){
+			if (strncmp(line, "State:", 6) == 0){
+			sscanf(line, "State: %c", &state_sym);
+			break;
+			}
+		} 
+		fclose(fp);
+		snprintf(statm_path, sizeof(statm_path), "/proc/%d/statm", pid);
+		fp = fopen(statm_path, "r");
+		
+		if (!fp){
+			perror("Ошибка открытия файла");
+			return -1;
+		}
+		if (fscanf(fp, "%*u %llu", &res_pages) != 1)
+			res_pages = 0;
+		fclose(fp);
+		
+		
+		process[count].pid = pid;
+		process[count].state = state_sym;
+		process[count].res = res_pages * (page_size/1024);
+		process[count].perc_cpu = 0.0f;
+		process[count].perc_mem = 0.0f;
+		
+		count++;
+	}
+
 }
