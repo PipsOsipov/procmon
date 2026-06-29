@@ -12,7 +12,9 @@
 struct ProcessInfo{
 	int pid;
 	char state;
+	unsigned long long virt;
 	unsigned long long res;
+	unsigned long long shr;
 	float perc_cpu;
 	float perc_mem;
 };
@@ -92,15 +94,17 @@ int main(void){
 		
 		unsigned long long mem_buff_cache = ram.mem_cache + ram.mem_buff + ram.mem_krecl;
 		unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
-		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n", 
+		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		first = second;
-		printf("PID	STATE	RES	%%CPU	%%MEM\n");
+		printf("PID	STATE	VIRT	RES	SHR	%%CPU	%%MEM\n");
 		for (int i = 0; i<=MAXPROC; i++){
 			if (proc_info[i].pid == 0)
 				break;	
-			printf("%d	%c	%llu	%.2f	%.2f\n", 
-			proc_info[i].pid, proc_info[i].state, proc_info[i].res, proc_info[i].perc_cpu, proc_info[i].perc_mem);
+			printf("%d	%c	%llu	%llu	%llu	%.2f	%.2f\n", 
+			proc_info[i].pid, proc_info[i].state, 
+			proc_info[i].virt,proc_info[i].res, proc_info[i].shr, 
+			proc_info[i].perc_cpu, proc_info[i].perc_mem);
 		}
 	}
 	return 0;
@@ -228,7 +232,9 @@ int read_process_info(struct ProcessInfo process[]){
 	char status_path[MAXLEN];
 	char line[MAXLEN];
 	char statm_path[MAXLEN];
+	unsigned long long shr_pages = 0;
 	unsigned long long res_pages = 0;
+	unsigned long long virt_pages = 0;
 	int count = 0;
 	unsigned long long page_size = sysconf(_SC_PAGESIZE);
 	
@@ -272,14 +278,19 @@ int read_process_info(struct ProcessInfo process[]){
 			perror("Ошибка открытия файла");
 			return -1;
 		}
-		if (fscanf(fp, "%*u %llu", &res_pages) != 1)
+		if (fscanf(fp, "%llu %llu %llu", &virt_pages, &res_pages, &shr_pages) != 3){
 			res_pages = 0;
+			virt_pages= 0;
+			shr_pages = 0;
+		}
 		fclose(fp);
 		
 		
 		process[count].pid = pid;
 		process[count].state = state_sym;
+		process[count].virt = virt_pages * (page_size/1024);
 		process[count].res = res_pages * (page_size/1024);
+		process[count].shr = shr_pages * (page_size/1024);
 		process[count].perc_cpu = 0.0f;
 		process[count].perc_mem = 0.0f;
 		
