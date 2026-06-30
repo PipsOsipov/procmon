@@ -7,7 +7,7 @@
 
 #define MAXPATH 256
 #define MAXLEN 128
-#define MAXPROC 2048
+#define MAXPROC 1024
 
 struct ProcessInfoStable{
 	int pid;
@@ -36,6 +36,7 @@ int main(void){
 	struct RAMdata ram;
 	struct ProcessInfoStable proc_info[MAXPROC];
 	int r, t, s, z, total;
+	int active_procs =0;
 	
 	
 	/*proc_state_scan(&r, &t, &s, &z, &total);
@@ -55,7 +56,7 @@ int main(void){
 		}
 		/*printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
 		second.user, second.nice, second.system, second.idle_time);*/
-		proc_state_mem_scan(proc_info, &r, &t, &s, &z, &total);
+		active_procs = proc_state_mem_scan(proc_info, &r, &t, &s, &z, &total);
 		
 		read_ram_data(&ram);
 		
@@ -65,12 +66,12 @@ int main(void){
 		printf("Tasks: Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 		total, r, s, t, z);
 		
-		unsigned int d_user   = (unsigned int)(second.user - first.user);
-		unsigned int d_nice   = (unsigned int)(second.nice - first.nice);
-		unsigned int d_system = (unsigned int)(second.system - first.system);
-		unsigned int d_idle   = (unsigned int)(second.idle_time - first.idle_time);
+		unsigned long long d_user   = second.user - first.user;
+		unsigned long long d_nice   = second.nice - first.nice;
+		unsigned long long d_system = second.system - first.system;
+		unsigned long long d_idle   = second.idle_time - first.idle_time;
 
-		unsigned int d_total  = d_user + d_nice + d_system + d_idle;
+		unsigned long long d_total  = d_user + d_nice + d_system + d_idle;
 		
 		if (d_total > 0){
 			double cpu_total = (1.0 - ((double) d_idle/d_total)) * 100;
@@ -95,12 +96,16 @@ int main(void){
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		
 		
-		
 		printf("PID	STATE	VIRT	RES	SHR	%%MEM	NAME\n");
-		for (int i = 0; i<=MAXPROC; i++){
-			if (proc_info[i].pid == 0)
-				break;	
-			proc_info[i].perc_mem = ((double)proc_info[i].res/ram.mem_total) * 100;
+		for (int i = 0; i < active_procs; i++){
+			
+			if (ram.mem_total > 0){
+				proc_info[i].perc_mem = ((double)proc_info[i].res/ram.mem_total) * 100;
+			}else {
+				printf("Ошибка! Деление на ноль!");
+				break;
+			}
+			
 			printf("%d	%c	%llu	%llu	%llu	%.2f	%s\n", 
 			proc_info[i].pid, proc_info[i].state, 
 			proc_info[i].virt,proc_info[i].res, 
@@ -153,10 +158,9 @@ int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int 
 		
 		FILE *fp;
 		fp = fopen(proc_path, "r");
-		if(!fp)
+		if(!fp){
 			continue;
-			
-		(*total)++;
+		}
 		
 		while (fgets(line, sizeof(line), fp)){
 			if(strncmp(line, "Name:", 5) == 0){
@@ -196,9 +200,9 @@ int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int 
 		fp = fopen(statm_path, "r");
 		
 		if (!fp){
-			perror("Ошибка открытия файла");
-			return -1;
+			continue;
 		}
+		
 		if (fscanf(fp, "%llu %llu %llu", &virt_pages, &res_pages, &shr_pages) != 3){
 			res_pages = 0;
 			virt_pages= 0;
@@ -211,11 +215,11 @@ int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int 
 		process[count].res = res_pages * (page_size/1024);
 		process[count].shr = shr_pages * (page_size/1024);
 		process[count].perc_mem = 0.0f;
-		
+		(*total)++;
 		count++;
 	}
 	closedir(dir);
-	return 0;
+	return count;
 }
 
 int read_cpu_data(struct CPUdata *data){
