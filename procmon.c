@@ -9,13 +9,12 @@
 #define MAXLEN 128
 #define MAXPROC 2048
 
-struct ProcessInfo{
+struct ProcessInfoStable{
 	int pid;
 	char state;
 	unsigned long long virt;
 	unsigned long long res;
 	unsigned long long shr;
-	float perc_cpu;
 	float perc_mem;
 };
 
@@ -27,15 +26,14 @@ struct RAMdata {
 	unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
 	};
 
-int read_process_info(struct ProcessInfo process[]);
 int read_ram_data(struct RAMdata *data);
-int proc_state_scan(int *r, int *t, int *s, int *z, int *total);
+int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int *s, int *z, int *total);
 int read_cpu_data(struct CPUdata *data);
 
 int main(void){
 	struct CPUdata first, second;
 	struct RAMdata ram;
-	struct ProcessInfo proc_info[MAXPROC];
+	struct ProcessInfoStable proc_info[MAXPROC];
 	int r, t, s, z, total;
 	
 	
@@ -49,19 +47,17 @@ int main(void){
 	
 	while(1){
 		
-		sleep(3);
-		
+		sleep(1);
 		
 		if(read_cpu_data(&second) != 0){
 			break;
 		}
 		/*printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
 		second.user, second.nice, second.system, second.idle_time);*/
-		proc_state_scan(&r, &t, &s, &z, &total);
+		proc_state_mem_scan(proc_info, &r, &t, &s, &z, &total);
 		
 		read_ram_data(&ram);
 		
-		read_process_info(proc_info);
 		
 		printf("\033[H\033[J");
 		
@@ -97,24 +93,31 @@ int main(void){
 		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		first = second;
-		printf("PID	STATE	VIRT	RES	SHR	%%CPU	%%MEM\n");
+		printf("PID	STATE	VIRT	RES	SHR	%%MEM\n");
 		for (int i = 0; i<=MAXPROC; i++){
 			if (proc_info[i].pid == 0)
 				break;	
-			printf("%d	%c	%llu	%llu	%llu	%.2f	%.2f\n", 
+			printf("%d	%c	%llu	%llu	%llu	%.2f\n", 
 			proc_info[i].pid, proc_info[i].state, 
-			proc_info[i].virt,proc_info[i].res, proc_info[i].shr, 
-			proc_info[i].perc_cpu, proc_info[i].perc_mem);
+			proc_info[i].virt,proc_info[i].res, 
+			proc_info[i].shr, proc_info[i].perc_mem);
 		}
 	}
 	return 0;
 }
 
-int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
+int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int *s, int *z, int *total){
 	
 	char line[MAXLEN];
 	char proc_path[MAXPATH];
 	char dirpath[MAXPATH] = "/proc/";
+	int count = 0;
+	char statm_path[MAXLEN];
+	unsigned long long page_size = sysconf(_SC_PAGESIZE);
+	unsigned long long shr_pages = 0;
+	unsigned long long res_pages = 0;
+	unsigned long long virt_pages = 0;
+	int pid = 0;
 	struct dirent *entry;
 	
 	*r = 0; 
@@ -133,7 +136,13 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 	while ((entry = readdir(dir)) != NULL){
 		if (!isdigit(entry->d_name[0]))
 			continue;
-		snprintf(proc_path, sizeof(proc_path), "/proc/%s/status", entry->d_name);
+			
+		if (count >= MAXPROC)
+			break;
+		
+		pid = atoi(entry->d_name);
+		
+		snprintf(proc_path, sizeof(proc_path), "/proc/%d/status", pid);
 		//printf("\nproc_path: %s", proc_path);
 		
 		FILE *fp;
@@ -146,8 +155,8 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 		while (fgets(line, sizeof(line), fp)){
 			if(strncmp(line, "State:", 6) == 0){
 				char state_sym;
-				
 				if(sscanf(line, "State: %c", &state_sym) == 1){
+					process[count].state = state_sym;
 					switch(state_sym){
 					case 'R': (*r)++;
 						break;
@@ -161,6 +170,7 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 					case 'Z': (*z)++;
 						break;
 					default:
+						process[count].state = 'X';
 						break;
 					}
 				} 
@@ -169,6 +179,27 @@ int proc_state_scan(int *r, int *t, int *s, int *z, int *total){
 		}
 		fclose(fp);
 		
+		snprintf(statm_path, sizeof(statm_path), "/proc/%d/statm", pid);
+		fp = fopen(statm_path, "r");
+		
+		if (!fp){
+			perror("Ошибка открытия файла");
+			return -1;
+		}
+		if (fscanf(fp, "%llu %llu %llu", &virt_pages, &res_pages, &shr_pages) != 3){
+			res_pages = 0;
+			virt_pages= 0;
+			shr_pages = 0;
+		}
+		fclose(fp);
+		
+		process[count].pid = pid;
+		process[count].virt = virt_pages * (page_size/1024);
+		process[count].res = res_pages * (page_size/1024);
+		process[count].shr = shr_pages * (page_size/1024);
+		process[count].perc_mem = 0.0f;
+		
+		count++;
 	}
 	closedir(dir);
 	return 0;
@@ -225,76 +256,4 @@ int read_ram_data(struct RAMdata *data){
 	}
 	fclose(fp);
 	return 0;
-}
-
-int read_process_info(struct ProcessInfo process[]){
-	int pid = 0;
-	char status_path[MAXLEN];
-	char line[MAXLEN];
-	char statm_path[MAXLEN];
-	unsigned long long shr_pages = 0;
-	unsigned long long res_pages = 0;
-	unsigned long long virt_pages = 0;
-	int count = 0;
-	unsigned long long page_size = sysconf(_SC_PAGESIZE);
-	
-	DIR *dir;
-	struct dirent *entry;
-	
-	dir = opendir("/proc/");
-	if (dir == NULL){
-		perror("Ошибка открытия директории");
-		return -1;
-	}
-	while ((entry = readdir(dir)) != NULL){
-		if (!isdigit(entry -> d_name[0]))
-			continue;
-		
-		if (count >= MAXPROC) 
-			break;
-			
-		pid = atoi(entry->d_name);
-		
-		snprintf(status_path, sizeof(status_path), "/proc/%d/status", pid);
-		FILE *fp;
-		fp = fopen(status_path, "r");
-		if (!fp){
-			perror("Ошибка открытия файла");
-			return -1;
-		}
-		
-		char state_sym = 'X';
-		while (fgets(line, sizeof(line), fp)){
-			if (strncmp(line, "State:", 6) == 0){
-			sscanf(line, "State: %c", &state_sym);
-			break;
-			}
-		} 
-		fclose(fp);
-		snprintf(statm_path, sizeof(statm_path), "/proc/%d/statm", pid);
-		fp = fopen(statm_path, "r");
-		
-		if (!fp){
-			perror("Ошибка открытия файла");
-			return -1;
-		}
-		if (fscanf(fp, "%llu %llu %llu", &virt_pages, &res_pages, &shr_pages) != 3){
-			res_pages = 0;
-			virt_pages= 0;
-			shr_pages = 0;
-		}
-		fclose(fp);
-		
-		
-		process[count].pid = pid;
-		process[count].state = state_sym;
-		process[count].virt = virt_pages * (page_size/1024);
-		process[count].res = res_pages * (page_size/1024);
-		process[count].shr = shr_pages * (page_size/1024);
-		process[count].perc_cpu = 0.0f;
-		process[count].perc_mem = 0.0f;
-		
-		count++;
-	}
-
 }
