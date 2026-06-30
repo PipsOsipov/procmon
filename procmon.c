@@ -11,11 +11,12 @@
 
 struct ProcessInfoStable{
 	int pid;
+	char name[MAXLEN];
 	char state;
 	unsigned long long virt;
 	unsigned long long res;
 	unsigned long long shr;
-	float perc_mem;
+	double perc_mem;
 };
 
 struct CPUdata {
@@ -92,16 +93,21 @@ int main(void){
 		unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
 		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
-		first = second;
-		printf("PID	STATE	VIRT	RES	SHR	%%MEM\n");
+		
+		
+		
+		printf("PID	STATE	VIRT	RES	SHR	%%MEM	NAME\n");
 		for (int i = 0; i<=MAXPROC; i++){
 			if (proc_info[i].pid == 0)
 				break;	
-			printf("%d	%c	%llu	%llu	%llu	%.2f\n", 
+			proc_info[i].perc_mem = ((double)proc_info[i].res/ram.mem_total) * 100;
+			printf("%d	%c	%llu	%llu	%llu	%.2f	%s\n", 
 			proc_info[i].pid, proc_info[i].state, 
 			proc_info[i].virt,proc_info[i].res, 
-			proc_info[i].shr, proc_info[i].perc_mem);
+			proc_info[i].shr, proc_info[i].perc_mem,
+			proc_info[i].name);
 		}
+		first = second;
 	}
 	return 0;
 }
@@ -153,6 +159,13 @@ int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int 
 		(*total)++;
 		
 		while (fgets(line, sizeof(line), fp)){
+			if(strncmp(line, "Name:", 5) == 0){
+				char proc_name[MAXLEN];
+				if(sscanf(line, "Name: %s", proc_name) == 1){
+					strncpy(process[count].name, proc_name, MAXLEN-1);
+					process[count].name[MAXLEN - 1] = '\0';
+				}
+			}
 			if(strncmp(line, "State:", 6) == 0){
 				char state_sym;
 				if(sscanf(line, "State: %c", &state_sym) == 1){
