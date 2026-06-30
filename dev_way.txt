@@ -381,3 +381,27 @@ si — программные которые происходят на уров�
 	значение страниц RES в данном файле идет вторым по счету 
 	можно его считать напрямую с помощью fscanf(fp, "%*u %llu", &res_pages)
 	После получения данных заполняем массив
+	
+	функцию то я сделал, однако код работает очень медленно 
+	так же я заметил что функции очень сильно повторяются так что
+	нужно пересмотреть структуру и функции
+	
+	Пока уберем из структуры perc_cpu 
+	новая структура
+	
+	struct ProcessInfoStable{
+		int pid;
+		char state;
+		unsigned long long virt;
+		unsigned long long res;
+		unsigned long long shr;
+		float perc_mem;
+	};
+	
+	функция int read_process_info(struct ProcessInfo process[]) так же убирается.
+	Я объединил ее с proc_state_scan создав в итоге новую функцию 
+	int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int *s, int *z, int *total);
+	Теперь вроде бы повторов стало в разы меньше 	
+	Корректирую вывод 
+	Пока что необходимо убрать %CPU из вывода 
+	Хорошо вроде бы пока что все работает
