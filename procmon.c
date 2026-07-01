@@ -16,7 +16,9 @@ struct ProcessInfoStable{
 	unsigned long long virt;
 	unsigned long long res;
 	unsigned long long shr;
+	unsigned long long oldtiks;
 	double perc_mem;
+	double perc_cpu;
 };
 
 struct CPUdata {
@@ -27,6 +29,7 @@ struct RAMdata {
 	unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
 	};
 
+unsigned long long get_proc_ticks(int pid);
 int read_ram_data(struct RAMdata *data);
 int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int *s, int *z, int *total);
 int read_cpu_data(struct CPUdata *data);
@@ -273,4 +276,9 @@ int read_ram_data(struct RAMdata *data){
 	}
 	fclose(fp);
 	return 0;
+}
+
+unsigned long long get_proc_ticks(int pid){
+
+
 }
