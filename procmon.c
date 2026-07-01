@@ -16,7 +16,7 @@ struct ProcessInfoStable{
 	unsigned long long virt;
 	unsigned long long res;
 	unsigned long long shr;
-	unsigned long long oldtiks;
+	unsigned long long oldtiсks;
 	double perc_mem;
 	double perc_cpu;
 };
@@ -37,21 +37,30 @@ int read_cpu_data(struct CPUdata *data);
 int main(void){
 	struct CPUdata first, second;
 	struct RAMdata ram;
-	struct ProcessInfoStable proc_info[MAXPROC];
+	struct ProcessInfoStable proc_info[MAXPROC], prev_proc_info[MAXPROC];
 	int r, t, s, z, total;
 	int active_procs =0;
+	int prev_active_proc =0;
 	
 	
 	/*proc_state_scan(&r, &t, &s, &z, &total);
 	printf("Количество процессов:"
 	"Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
 	total, r, s, t, z);*/
+	
 	read_cpu_data(&first);
+	
+	prev_active_proc = proc_state_mem_scan(prev_proc_info, &r, &t, &s, &z, &total);
+	
+	for (int i = 0; i < prev_active_proc; i++){
+			prev_proc_info[i].oldtiсks = get_proc_ticks(prev_proc_info[i].pid);
+	}
+	
 	/*printf("1 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
 	first.user, first.nice, first.system, first.idle_time);*/
 	
 	while(1){
-		
+	
 		sleep(1);
 		
 		if(read_cpu_data(&second) != 0){
@@ -60,7 +69,7 @@ int main(void){
 		/*printf("2 замер CPU(s): user %llu, nice %llu, system %llu, idle_time %llu \n",
 		second.user, second.nice, second.system, second.idle_time);*/
 		active_procs = proc_state_mem_scan(proc_info, &r, &t, &s, &z, &total);
-		
+	
 		read_ram_data(&ram);
 		
 		
@@ -99,8 +108,24 @@ int main(void){
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		
 		
-		printf("PID	STATE	VIRT	RES	SHR	%%MEM	NAME\n");
+		printf("PID	STATE	VIRT	RES	SHR	%%CPU	%%MEM	NAME\n");
 		for (int i = 0; i < active_procs; i++){
+		
+			unsigned long long current_ticks = get_proc_ticks(proc_info[i].pid);
+			unsigned long long old_ticks = 0;
+			
+			for (int j = 0; j < prev_active_proc; j++){
+				if (prev_proc_info[j].pid == proc_info[i].pid){ 
+					old_ticks = prev_proc_info[j].oldtiсks;
+					break;
+				}
+			}
+			
+			if (d_total>0){
+				proc_info[i].perc_cpu = ((double)(current_ticks - old_ticks) / d_total) * 100; 
+			} else {
+				proc_info[i].perc_cpu = 0.0f; 
+			}
 			
 			if (ram.mem_total > 0){
 				proc_info[i].perc_mem = ((double)proc_info[i].res/ram.mem_total) * 100;
@@ -109,13 +134,17 @@ int main(void){
 				break;
 			}
 			
-			printf("%d	%c	%llu	%llu	%llu	%.2f	%s\n", 
+			printf("%d	%c	%llu	%llu	%llu	%.2f	%.2f	%s\n", 
 			proc_info[i].pid, proc_info[i].state, 
 			proc_info[i].virt,proc_info[i].res, 
-			proc_info[i].shr, proc_info[i].perc_mem,
-			proc_info[i].name);
+			proc_info[i].shr, proc_info[i].perc_cpu,
+			proc_info[i].perc_mem, proc_info[i].name);
+			
+			proc_info[i].oldtiсks = current_ticks;
 		}
 		first = second;
+		memcpy(prev_proc_info, proc_info, sizeof(proc_info));
+		prev_active_proc = active_procs;
 	}
 	return 0;
 }
@@ -279,6 +308,36 @@ int read_ram_data(struct RAMdata *data){
 }
 
 unsigned long long get_proc_ticks(int pid){
-
-
+	char path[MAXPATH];
+	char line [MAXLEN * 8];
+	unsigned long long utime = 0;
+    	unsigned long long stime = 0;
+	
+	snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+	
+	FILE *fp;
+	fp = fopen(path, "r");
+	if (!fp){
+		return 0;
+	}
+	
+	if (!fgets(line, sizeof(line), fp)){
+		fclose(fp);
+		return 0;
+	}
+	fclose(fp);
+	char *openbr = strchr(line, '(');
+	char *closebr = strrchr(line, ')');
+	if (openbr < closebr){
+		for (char *p = openbr; p <= closebr; p++){
+			if (*p == ' ') *p = '_';
+		}
+	}
+	
+	int scanned = sscanf(line, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %llu %llu", &utime, &stime);
+	if (scanned == 2){
+		return utime + stime;
+	} else{
+		return 0;
+	}
 }
