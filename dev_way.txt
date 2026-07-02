@@ -526,4 +526,5 @@ si — программные которые происходят на уров�
 	а active_procs становятся prev_active_proc 1 замера
 	memcpy(prev_proc_info, proc_info, sizeof(proc_info));
 	prev_active_proc = active_procs;
+	Теперь слегка отформатирую вывод с помощью ANSI последовательностей
 	
