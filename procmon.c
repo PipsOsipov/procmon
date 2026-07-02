@@ -108,7 +108,7 @@ int main(void){
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		
 		
-		printf("PID	STATE	VIRT	RES	SHR	%%CPU	%%MEM	NAME\n");
+		printf("\033[1mPID\tSTATE\tVIRT\tRES\tSHR\t%%CPU\t%%MEM\tNAME\033[0m\n");
 		for (int i = 0; i < active_procs; i++){
 		
 			unsigned long long current_ticks = get_proc_ticks(proc_info[i].pid);
@@ -134,7 +134,7 @@ int main(void){
 				break;
 			}
 			
-			printf("%d	%c	%llu	%llu	%llu	%.2f	%.2f	%s\n", 
+			printf("%d\t%c\t%llu\t%llu\t%llu\t%.2f\t%.2f\t%s\n", 
 			proc_info[i].pid, proc_info[i].state, 
 			proc_info[i].virt,proc_info[i].res, 
 			proc_info[i].shr, proc_info[i].perc_cpu,
@@ -145,6 +145,8 @@ int main(void){
 		first = second;
 		memcpy(prev_proc_info, proc_info, sizeof(proc_info));
 		prev_active_proc = active_procs;
+		
+		fflush(stdout);
 	}
 	return 0;
 }
