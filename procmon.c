@@ -8,6 +8,7 @@
 #define MAXPATH 256
 #define MAXLEN 128
 #define MAXPROC 1024
+#define VISIBLE_PROCS 30
 
 struct ProcessInfoStable{
 	int pid;
@@ -29,6 +30,7 @@ struct RAMdata {
 	unsigned long long mem_total, mem_free, mem_buff, mem_cache, mem_krecl; 
 	};
 
+void sort_by_cpu(struct ProcessInfoStable process[], int n);
 unsigned long long get_proc_ticks(int pid);
 int read_ram_data(struct RAMdata *data);
 int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int *s, int *z, int *total);
@@ -61,7 +63,7 @@ int main(void){
 	
 	while(1){
 	
-		sleep(1);
+		sleep(3);
 		
 		if(read_cpu_data(&second) != 0){
 			break;
@@ -107,8 +109,6 @@ int main(void){
 		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		
-		
-		printf("\033[1mPID\tSTATE\tVIRT\tRES\tSHR\t%%CPU\t%%MEM\tNAME\033[0m\n");
 		for (int i = 0; i < active_procs; i++){
 		
 			unsigned long long current_ticks = get_proc_ticks(proc_info[i].pid);
@@ -134,14 +134,20 @@ int main(void){
 				break;
 			}
 			
-			printf("%d\t%c\t%llu\t%llu\t%llu\t%.2f\t%.2f\t%s\n", 
-			proc_info[i].pid, proc_info[i].state, 
-			proc_info[i].virt,proc_info[i].res, 
-			proc_info[i].shr, proc_info[i].perc_cpu,
-			proc_info[i].perc_mem, proc_info[i].name);
-			
 			proc_info[i].oldtiсks = current_ticks;
 		}
+		
+		sort_by_cpu(proc_info, active_procs);
+		printf("\033[1m%-7s %-5s %-12s %-9s %-9s %-6s %-6s %s\033[0m\n", "PID", "STATE", "VIRT", "RES", "SHR", "%CPU", "%MEM", "NAME");
+		int limit = active_procs > VISIBLE_PROCS ? VISIBLE_PROCS : active_procs;
+		
+		for (int i = 0; i < limit; i++){
+			printf("%-7d %-5c %-12llu %-9llu %-9llu %-6.2f %-6.2f %s\n", proc_info[i].pid, proc_info[i].state, 
+				proc_info[i].virt,proc_info[i].res, 
+				proc_info[i].shr, proc_info[i].perc_cpu,
+				proc_info[i].perc_mem, proc_info[i].name);
+		}
+		
 		first = second;
 		memcpy(prev_proc_info, proc_info, sizeof(proc_info));
 		prev_active_proc = active_procs;
@@ -198,12 +204,15 @@ int proc_state_mem_scan(struct ProcessInfoStable process[], int *r, int *t, int 
 		
 		while (fgets(line, sizeof(line), fp)){
 			if(strncmp(line, "Name:", 5) == 0){
-				char proc_name[MAXLEN];
-				if(sscanf(line, "Name: %s", proc_name) == 1){
-					strncpy(process[count].name, proc_name, MAXLEN-1);
-					process[count].name[MAXLEN - 1] = '\0';
+				char *name_ptr = line + 5;
+				while (*name_ptr == ' ' || *name_ptr == '\t') {
+				    name_ptr++;
 				}
+				name_ptr[strcspn(name_ptr, "\n")] = '\0';
+				strncpy(process[count].name, name_ptr, MAXLEN-1);
+				process[count].name[MAXLEN - 1] = '\0';
 			}
+			
 			if(strncmp(line, "State:", 6) == 0){
 				char state_sym;
 				if(sscanf(line, "State: %c", &state_sym) == 1){
@@ -342,4 +351,16 @@ unsigned long long get_proc_ticks(int pid){
 	} else{
 		return 0;
 	}
+}
+
+void sort_by_cpu(struct ProcessInfoStable process[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (process[j].perc_cpu < process[j + 1].perc_cpu) {
+                struct ProcessInfoStable temp = process[j];
+                process[j] = process[j + 1];
+                process[j + 1] = temp;
+            }
+        }
+    }
 }
