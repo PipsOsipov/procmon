@@ -77,7 +77,7 @@ int main(void){
 		
 		printf("\033[H\033[J");
 		
-		printf("Tasks: Total: %d, Running: %d, Sleeping: %d, Stopped: %d, Zombie: %d\n", 
+		printf("\033[1;92mTasks\033[0m: \033[1;98m%d\033[0m Total, \033[1;98m%d\033[0m Running, \033[1;98m%d\033[0m Sleeping, \033[1;98m%d\033[0m Stopped, \033[1;98m%d\033[0m Zombie\n", 
 		total, r, s, t, z);
 		
 		unsigned long long d_user   = second.user - first.user;
@@ -96,7 +96,7 @@ int main(void){
 			
 			double cpu_system = ((double) d_system/d_total) * 100;
 		
-			printf("%%CPU(s): total %5.1f%% | user %5.1f%% | system %5.1f%% | nice %5.1f%% | idle %5.1f%%\n", 
+			printf("\033[1;94m%%CPU(s)\033[0m: \033[1;98m%5.1f\033[0m total, \033[1;98m%5.1f\033[0m user, \033[1;98m%5.1f\033[0m system,  \033[1;98m%5.1f\033[0m nice, \033[1;98m%5.1f\033[0m idle\n", 
 			cpu_total, cpu_user, cpu_system, cpu_nice, (double)d_idle / d_total * 100.0);
 
 		} else{
@@ -106,7 +106,7 @@ int main(void){
 		
 		unsigned long long mem_buff_cache = ram.mem_cache + ram.mem_buff + ram.mem_krecl;
 		unsigned long long mem_used = ram.mem_total - ram.mem_free - mem_buff_cache;
-		printf("MiB Mem: %6.1f total, %6.1f free, %6.1f used, %6.1f buff/cache\n\n", 
+		printf("\033[1;93mMiB Mem\033[0m: \033[1;98m%6.1f\033[0m total, \033[1;98m%6.1f\033[0m free, \033[1;98m%6.1f\033[0m used, \033[1;98m%6.1f\033[0m buff/cache\n\n", 
 		(double)ram.mem_total/1024, (double)ram.mem_free/1024, (double)mem_used/1024, (double)mem_buff_cache/1024);
 		
 		for (int i = 0; i < active_procs; i++){
@@ -138,7 +138,7 @@ int main(void){
 		}
 		
 		sort_by_cpu(proc_info, active_procs);
-		printf("\033[1m%-7s %-5s %-12s %-9s %-9s %-6s %-6s %s\033[0m\n", "PID", "STATE", "VIRT", "RES", "SHR", "%CPU", "%MEM", "NAME");
+		printf("\033[7m%-7s %-5s %-12s %-9s %-9s %-6s %-6s %s\033[0m\n", "PID", "STATE", "VIRT", "RES", "SHR", "%CPU", "%MEM", "NAME");
 		int limit = active_procs > VISIBLE_PROCS ? VISIBLE_PROCS : active_procs;
 		
 		for (int i = 0; i < limit; i++){
